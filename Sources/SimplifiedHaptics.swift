@@ -11,7 +11,7 @@ class SimplifiedHaptics: ObservableObject {
 
     // Feedback timing control
     private var lastFeedbackTime = Date()
-    private let minimumInterval: TimeInterval = 0.5  // Prevent overwhelming feedback
+    private let minimumInterval: TimeInterval = 1.0  // Increased to reduce frequency
 
     // MARK: - Initialization
     init() {
@@ -125,25 +125,25 @@ class SimplifiedHaptics: ObservableObject {
         playPattern(events: [event])
     }
 
-    /// Distance-based feedback - intensity increases as obstacle gets closer
+    /// Distance-based feedback - more subtle
     func distanceBasedFeedback(distance: Float) {
         guard isEnabled else { return }
 
-        // Calculate intensity based on distance
-        // 0.3m = max intensity (1.0), 2m = min intensity (0.2)
-        let intensity = max(0.2, min(1.0, (2.0 - distance) / 1.7))
+        // Much gentler intensity curve
+        // 0.4m = max intensity (0.7), 1.2m = min intensity (0.2)
+        let intensity = max(0.2, min(0.7, (1.2 - distance) / 0.8))
 
-        if distance < 0.5 {
-            // Very close - continuous warning
-            continuousWarning(duration: 0.3, intensity: intensity)
-        } else if distance < 1.0 {
-            // Close - double tap
-            doubleTap(intensity: intensity)
-        } else if distance < 2.0 {
-            // Moderate distance - single tap
-            singleTap(intensity: intensity)
+        if distance < 0.4 {
+            // Very close - short vibration (not continuous)
+            continuousWarning(duration: 0.15, intensity: intensity)  // Shorter
+        } else if distance < 0.8 {
+            // Close - single gentle tap (not double)
+            singleTap(intensity: intensity * 0.8)  // Gentler
+        } else if distance < 1.2 {
+            // Moderate distance - very light tap
+            singleTap(intensity: intensity * 0.5)  // Very gentle
         }
-        // No haptic beyond 2m
+        // No haptic beyond 1.2m - much shorter range
     }
 
     /// Direction indicator - left or right

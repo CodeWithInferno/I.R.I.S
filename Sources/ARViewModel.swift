@@ -17,9 +17,9 @@ class ARViewModel: NSObject, ObservableObject {
     @Published var showLiDARAlert = false
     @Published var trackingQuality = "Unknown"
 
-    // Settings
-    @Published var warningThreshold: Float = 1.5
-    @Published var criticalThreshold: Float = 0.5
+    // Settings - reduced sensitivity
+    @Published var warningThreshold: Float = 1.2  // Reduced from 1.5
+    @Published var criticalThreshold: Float = 0.4  // Reduced from 0.5
     @Published var hapticEnabled = true
     @Published var audioEnabled = true
     @Published var visualWarningsEnabled = true
@@ -216,9 +216,9 @@ class ARViewModel: NSObject, ObservableObject {
             let scanStartX = centerX - scanWidth / 2
             let scanEndX = centerX + scanWidth / 2
 
-            // Scan only the middle portion of screen (chest to head level)
-            let scanStartY = height / 4  // Start from upper portion
-            let scanEndY = (height * 2) / 3  // End before ground level
+            // Scan only eye level area (avoid ground completely)
+            let scanStartY = height / 3  // Start from upper third
+            let scanEndY = height / 2  // Only scan middle area, not bottom half
 
             for y in scanStartY...scanEndY {
                 for x in scanStartX...scanEndX {
@@ -227,8 +227,9 @@ class ARViewModel: NSObject, ObservableObject {
 
                     if confidence != .low {
                         let distance = depthAddress[index]
-                        // Ignore very close ground readings (< 0.3m) and far readings (> 5m)
-                        if distance > 0.3 && distance < 5.0 && distance < minDistance {
+                        // Much stricter filtering - ignore anything below 0.8m or above 3m
+                        // This should only detect obstacles at torso/head level
+                        if distance > 0.8 && distance < 3.0 && distance < minDistance {
                             minDistance = distance
                         }
                     }
@@ -376,13 +377,19 @@ class ARViewModel: NSObject, ObservableObject {
             // Add to obstacle memory with height filtering
             let obstacleType = obstacleMemoryMap.classifyFromARMesh(meshClass)
 
-            // Filter out floor, ceiling, and low obstacles (below knee level ~0.4m from user position)
+            // Much stricter ground filtering
             let relativeHeight = worldPos.y - userPosition.y
-            let isGroundLevel = relativeHeight < -0.8  // Below 0.8m from camera is likely ground
 
-            if obstacleType != ObstacleMemoryMap.ObstacleType.floor &&
-               obstacleType != ObstacleMemoryMap.ObstacleType.ceiling &&
-               !isGroundLevel {
+            // Ignore anything below waist level (1m below camera) or above head (0.5m above camera)
+            let isTooLow = relativeHeight < -1.0  // Below waist
+            let isTooHigh = relativeHeight > 0.5  // Above head level
+
+            // Also check if it's classified as floor/ceiling
+            let isGroundOrCeiling = obstacleType == ObstacleMemoryMap.ObstacleType.floor ||
+                                   obstacleType == ObstacleMemoryMap.ObstacleType.ceiling
+
+            // Only add obstacles that are at reasonable height and not floor/ceiling
+            if !isGroundOrCeiling && !isTooLow && !isTooHigh {
                 obstacleMemoryMap.addOrUpdateObstacle(
                     position: worldPos,
                     size: simd_float3(0.3, 0.3, 0.3), // Default size
@@ -412,16 +419,16 @@ class ARViewModel: NSObject, ObservableObject {
         if let closest = distances.min(by: { $0.0 < $1.0 }) {
             let (distance, obstacleDirection) = closest
 
-            // Musical feedback for distance
-            musicalFeedback.updateFeedback(distance: distance, direction: obstacleDirection)
+            // Only use haptic feedback - no audio/voice
+            // Musical feedback disabled - too annoying
+            // musicalFeedback.updateFeedback(distance: distance, direction: obstacleDirection)
 
             // Simplified haptic feedback based on distance
             simplifiedHaptics.distanceBasedFeedback(distance: distance)
 
-            // Voice guidance for critical situations
+            // No voice guidance - disabled
             if distance < criticalThreshold {
-                // Very close - announce stop
-                voiceGuidance.announceStop()
+                // Very close - only haptic warning
                 simplifiedHaptics.continuousWarning()
             } else if distance < warningThreshold {
                 // Warning zone - suggest direction
@@ -457,16 +464,17 @@ class ARViewModel: NSObject, ObservableObject {
                     navigationDirection = .straight
                 }
 
-                voiceGuidance.announceObstacle(direction: voiceDirection, distance: distance)
+                // Voice disabled
+                // voiceGuidance.announceObstacle(direction: voiceDirection, distance: distance)
             }
         } else {
             // No obstacles detected - clear path
-            musicalFeedback.stopFeedback()
+            // musicalFeedback.stopFeedback()  // Disabled
             navigationDirection = .straight
 
-            // Occasionally announce clear path
+            // No announcements - just occasional haptic
             if Date().timeIntervalSince(lastWarningTime) > 5.0 {
-                voiceGuidance.announceClear()
+                // voiceGuidance.announceClear()  // Disabled
                 simplifiedHaptics.successFeedback()
                 lastWarningTime = Date()
             }
