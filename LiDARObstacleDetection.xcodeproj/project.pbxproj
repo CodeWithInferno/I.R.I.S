@@ -3,17 +3,27 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		11A63417B7686CFDB7A5410C /* AudioDirectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30389EEE5BEA2DB467961CB7 /* AudioDirectionManager.swift */; };
+		31D44AB4DDDA997832503CE9 /* PathVisualization.swift in Sources */ = {isa = PBXBuildFile; fileRef = C965D37301124079CE8D9E03 /* PathVisualization.swift */; };
+		748944F3DCDCA917AE0CF50F /* PathPlanningEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C51355205D9322EB21F6AF8C /* PathPlanningEngine.swift */; };
 		98D72D1876BD7ED4A0D23DBA /* ObstacleDetectionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB68B29CBDEFC6D2C87D33DC /* ObstacleDetectionApp.swift */; };
+		9BFA7AFD55953745C2F36EBE /* ObstacleMemoryMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0340C473493901391B0262E4 /* ObstacleMemoryMap.swift */; };
+		A11204D4F5B99D544F23A9BE /* HapticFeedbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20E6D763AB1B3CD3A62BDBBD /* HapticFeedbackManager.swift */; };
 		AA4565FFEC44DAF8E921F42F /* ARViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9692B46B477CA7D7BDF3BDE /* ARViewModel.swift */; };
 		B53DB142A6D98F40D335FEAE /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F71F7D6E3D02B305EF6AA14F /* ContentView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A4B67F7DF0957944FFDB9631 /* LiDARObstacleDetection.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LiDARObstacleDetection.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0340C473493901391B0262E4 /* ObstacleMemoryMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObstacleMemoryMap.swift; sourceTree = "<group>"; };
+		20E6D763AB1B3CD3A62BDBBD /* HapticFeedbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticFeedbackManager.swift; sourceTree = "<group>"; };
+		30389EEE5BEA2DB467961CB7 /* AudioDirectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDirectionManager.swift; sourceTree = "<group>"; };
+		A4B67F7DF0957944FFDB9631 /* LiDARObstacleDetection.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = LiDARObstacleDetection.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C51355205D9322EB21F6AF8C /* PathPlanningEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathPlanningEngine.swift; sourceTree = "<group>"; };
+		C965D37301124079CE8D9E03 /* PathVisualization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathVisualization.swift; sourceTree = "<group>"; };
 		CB68B29CBDEFC6D2C87D33DC /* ObstacleDetectionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObstacleDetectionApp.swift; sourceTree = "<group>"; };
 		F71F7D6E3D02B305EF6AA14F /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		F9692B46B477CA7D7BDF3BDE /* ARViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARViewModel.swift; sourceTree = "<group>"; };
@@ -32,9 +42,15 @@
 			isa = PBXGroup;
 			children = (
 				F9692B46B477CA7D7BDF3BDE /* ARViewModel.swift */,
+				30389EEE5BEA2DB467961CB7 /* AudioDirectionManager.swift */,
 				F71F7D6E3D02B305EF6AA14F /* ContentView.swift */,
+				20E6D763AB1B3CD3A62BDBBD /* HapticFeedbackManager.swift */,
 				CB68B29CBDEFC6D2C87D33DC /* ObstacleDetectionApp.swift */,
+				0340C473493901391B0262E4 /* ObstacleMemoryMap.swift */,
+				C51355205D9322EB21F6AF8C /* PathPlanningEngine.swift */,
+				C965D37301124079CE8D9E03 /* PathVisualization.swift */,
 			);
+			name = Sources;
 			path = Sources;
 			sourceTree = "<group>";
 		};
@@ -75,6 +91,11 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					994DCAB333DFFA9831278206 = {
+						DevelopmentTeam = "";
+					};
+				};
 			};
 			buildConfigurationList = B5A8A31EC07D1212B6B8E42C /* Build configuration list for PBXProject "LiDARObstacleDetection" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -86,6 +107,7 @@
 			);
 			mainGroup = 4A0BDBEB81A05E1A976BC474;
 			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -122,8 +144,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA4565FFEC44DAF8E921F42F /* ARViewModel.swift in Sources */,
+				11A63417B7686CFDB7A5410C /* AudioDirectionManager.swift in Sources */,
 				B53DB142A6D98F40D335FEAE /* ContentView.swift in Sources */,
+				A11204D4F5B99D544F23A9BE /* HapticFeedbackManager.swift in Sources */,
 				98D72D1876BD7ED4A0D23DBA /* ObstacleDetectionApp.swift in Sources */,
+				9BFA7AFD55953745C2F36EBE /* ObstacleMemoryMap.swift in Sources */,
+				748944F3DCDCA917AE0CF50F /* PathPlanningEngine.swift in Sources */,
+				31D44AB4DDDA997832503CE9 /* PathVisualization.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -272,7 +299,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = UH5Z2K4G9H;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -290,7 +316,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = UH5Z2K4G9H;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

@@ -239,6 +239,25 @@ struct SettingsView: View {
                     Toggle("Debug Info", isOn: $arViewModel.showDebugInfo)
                 }
 
+                Section("Navigation") {
+                    Toggle("Path Planning", isOn: $arViewModel.pathPlanningEnabled)
+                    Toggle("Show AR Path", isOn: $arViewModel.showPath)
+
+                    if arViewModel.navigationDirection != .straight {
+                        HStack {
+                            Text("Direction Guidance")
+                            Spacer()
+                            Text(navigationDirectionText(arViewModel.navigationDirection))
+                                .foregroundColor(navigationDirectionColor(arViewModel.navigationDirection))
+                                .fontWeight(.semibold)
+                        }
+                    }
+
+                    Button(action: testNavigationFeedback) {
+                        Label("Test Navigation Feedback", systemImage: "speaker.wave.3")
+                    }
+                }
+
                 Section("About") {
                     HStack {
                         Text("LiDAR Status")
@@ -264,6 +283,30 @@ struct SettingsView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func navigationDirectionText(_ direction: HapticFeedbackManager.NavigationDirection) -> String {
+        switch direction {
+        case .left: return "Turn Left"
+        case .right: return "Turn Right"
+        case .blocked: return "Path Blocked"
+        case .straight: return "Straight Ahead"
+        }
+    }
+
+    private func navigationDirectionColor(_ direction: HapticFeedbackManager.NavigationDirection) -> Color {
+        switch direction {
+        case .left, .right: return .yellow
+        case .blocked: return .red
+        case .straight: return .green
+        }
+    }
+
+    private func testNavigationFeedback() {
+        // Test left morse code pattern
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            // This would trigger test feedback in the AR model
         }
     }
 }

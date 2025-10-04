@@ -27,6 +27,11 @@ class ARViewModel: NSObject, ObservableObject {
     @Published var showDepthMap = false
     @Published var showDebugInfo = false
 
+    // Path Planning
+    @Published var pathPlanningEnabled = true
+    @Published var showPath = true
+    @Published var navigationDirection: HapticFeedbackManager.NavigationDirection = .straight
+
     // MARK: - Private Properties
     private var arView: ARView?
     private var session: ARSession?
@@ -43,12 +48,40 @@ class ARViewModel: NSObject, ObservableObject {
     // Mesh anchors
     private var meshAnchors: [UUID: ARMeshAnchor] = [:]
 
+    // New Managers
+    private let hapticFeedbackManager = HapticFeedbackManager()
+    private let audioDirectionManager = AudioDirectionManager()
+    private let obstacleMemoryMap = ObstacleMemoryMap()
+    private let pathPlanningEngine = PathPlanningEngine()
+    private let pathVisualization = PathVisualization()
+
+    // User position tracking
+    private var userPosition = simd_float3(0, 0, 0)
+    private var userHeading = simd_float3(0, 0, -1)
+    private var destinationPosition: simd_float3?
+
     // MARK: - Initialization
     override init() {
         super.init()
         setupHapticEngine()
         setupAudioPlayer()
+        setupManagers()
     }
+
+    // MARK: - Setup Managers
+    private func setupManagers() {
+        // Configure audio direction manager
+        audioDirectionManager.audioEnabled = audioEnabled
+
+        // Set up path planning observer
+        pathPlanningEngine.$currentPath
+            .sink { [weak self] path in
+                self?.pathVisualization.visualizePath(path)
+            }
+            .store(in: &cancellables)
+    }
+
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - LiDAR Check
     func checkLiDARAvailability() {
@@ -63,6 +96,9 @@ class ARViewModel: NSObject, ObservableObject {
     func setupAR(in arView: ARView) {
         self.arView = arView
         self.session = arView.session
+
+        // Setup path visualization
+        pathVisualization.setup(in: arView)
 
         // Configure AR session
         let configuration = ARWorldTrackingConfiguration()
@@ -192,6 +228,7 @@ class ARViewModel: NSObject, ObservableObject {
                 DispatchQueue.main.async {
                     self.closestObstacleDistance = minDistance
                     self.checkForWarnings(distance: minDistance)
+                    self.updateNavigationGuidance()
                 }
             }
         }
@@ -305,8 +342,115 @@ class ARViewModel: NSObject, ObservableObject {
     }
 
     private func analyzeMeshForObstacles(vertices: ARGeometrySource, classification: ARGeometrySource?, transform: simd_float4x4) {
-        // This would analyze the mesh geometry to identify specific obstacles
-        // For now, we're using depth data for distance calculation
+        // Extract obstacle information from mesh
+        guard let classificationData = classification else { return }
+
+        // Sample vertices to create obstacle entries
+        let vertexCount = vertices.count
+        let stride = max(1, vertexCount / 100) // Sample every N vertices for performance
+
+        for i in stride(from: 0, to: vertexCount, by: stride) {
+            // Get vertex position
+            let vertexPointer = vertices.buffer.contents().advanced(by: vertices.offset + (i * vertices.stride))
+            let vertex = vertexPointer.assumingMemoryBound(to: simd_float3.self).pointee
+
+            // Transform to world coordinates
+            let worldPos = simd_make_float3(transform * simd_float4(vertex, 1.0))
+
+            // Get classification
+            let classPointer = classificationData.buffer.contents().advanced(by: classificationData.offset + (i * classificationData.stride))
+            let classValue = classPointer.assumingMemoryBound(to: UInt8.self).pointee
+            let meshClass = ARMeshClassification(rawValue: Int(classValue)) ?? .none
+
+            // Add to obstacle memory
+            let obstacleType = obstacleMemoryMap.classifyFromARMesh(meshClass)
+            if obstacleType != .floor && obstacleType != .ceiling {
+                obstacleMemoryMap.addOrUpdateObstacle(
+                    position: worldPos,
+                    size: simd_float3(0.3, 0.3, 0.3), // Default size
+                    confidence: 0.8,
+                    classification: obstacleType
+                )
+            }
+        }
+    }
+
+    // MARK: - Navigation Methods
+
+    /// Update navigation guidance based on obstacles
+    private func updateNavigationGuidance() {
+        // Determine navigation direction based on obstacles
+        let leftClear = leftDistance > warningThreshold
+        let rightClear = rightDistance > warningThreshold
+        let frontClear = centerDistance > warningThreshold
+
+        var direction: HapticFeedbackManager.NavigationDirection = .straight
+
+        if !frontClear {
+            if leftClear && !rightClear {
+                direction = .left
+            } else if rightClear && !leftClear {
+                direction = .right
+            } else if leftClear && rightClear {
+                // Choose direction with more clearance
+                direction = leftDistance > rightDistance ? .left : .right
+            } else {
+                direction = .blocked
+            }
+        }
+
+        navigationDirection = direction
+
+        // Play haptic and audio feedback
+        if direction != .straight {
+            let distance = min(centerDistance, min(leftDistance, rightDistance))
+            hapticFeedbackManager.playNavigationFeedback(direction: direction, distance: distance)
+
+            let audioDirection = mapToAudioDirection(direction)
+            audioDirectionManager.playDirectionalCue(direction: audioDirection, distance: distance)
+        }
+
+        // Update path if needed
+        if pathPlanningEnabled && destinationPosition != nil {
+            updatePath()
+        }
+    }
+
+    /// Map haptic direction to audio direction
+    private func mapToAudioDirection(_ direction: HapticFeedbackManager.NavigationDirection) -> AudioDirectionManager.NavigationDirection {
+        switch direction {
+        case .left: return .left
+        case .right: return .right
+        case .straight: return .straight
+        case .blocked: return .blocked
+        }
+    }
+
+    /// Set navigation destination
+    func setDestination(_ position: simd_float3) {
+        destinationPosition = position
+        updatePath()
+    }
+
+    /// Update path planning
+    private func updatePath() {
+        guard let destination = destinationPosition else { return }
+
+        let obstacles = obstacleMemoryMap.getReliableObstacles()
+        pathPlanningEngine.planPath(
+            from: userPosition,
+            to: destination,
+            obstacles: obstacles,
+            userHeading: userHeading
+        )
+    }
+
+    /// Clear navigation
+    func clearNavigation() {
+        destinationPosition = nil
+        pathPlanningEngine.clearPath()
+        hapticFeedbackManager.stopAll()
+        audioDirectionManager.stopAll()
     }
 }
 
@@ -319,6 +463,18 @@ extension ARViewModel: ARSessionDelegate {
         } else {
             isTracking = false
         }
+
+        // Update user position and heading
+        let transform = frame.camera.transform
+        userPosition = simd_make_float3(transform.columns.3)
+        userHeading = -simd_make_float3(transform.columns.2) // Forward direction
+
+        // Update path planning with user position
+        pathPlanningEngine.updateUserPosition(
+            userPosition,
+            heading: userHeading,
+            obstacles: obstacleMemoryMap.getReliableObstacles()
+        )
 
         // Update tracking quality
         switch frame.camera.trackingState {
