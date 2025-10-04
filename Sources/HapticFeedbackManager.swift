@@ -272,7 +272,11 @@ class HapticFeedbackManager: ObservableObject {
 
     /// Stop current haptic pattern
     func stopCurrentPattern() {
-        hapticPlayer?.stop(atTime: 0)
+        do {
+            try hapticPlayer?.stop(atTime: 0)
+        } catch {
+            print("Failed to stop haptic pattern: \(error)")
+        }
         isPlaying = false
     }
 

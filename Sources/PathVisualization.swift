@@ -203,8 +203,8 @@ class PathVisualization: ObservableObject {
 
     /// Create arrow model
     private func createArrow(at position: simd_float3, direction: simd_float3) -> ModelEntity {
-        // Create arrow mesh (cone)
-        let mesh = MeshResource.generateCone(height: 0.2, radius: 0.08)
+        // Create arrow mesh using box as alternative to cone for iOS 15 compatibility
+        let mesh = MeshResource.generateBox(size: simd_float3(0.08, 0.2, 0.08), cornerRadius: 0.02)
         let material = SimpleMaterial(color: pathColor.withAlphaComponent(0.6), isMetallic: false)
         let arrow = ModelEntity(mesh: mesh, materials: [material])
 
@@ -224,14 +224,14 @@ class PathVisualization: ObservableObject {
 
     /// Create destination marker
     private func createDestinationMarker(at position: simd_float3) {
-        // Create a distinctive destination marker (cylinder with flag)
-        let baseMesh = MeshResource.generateCylinder(height: 0.02, radius: 0.25)
+        // Create a distinctive destination marker using boxes for iOS 15 compatibility
+        let baseMesh = MeshResource.generateBox(size: simd_float3(0.5, 0.02, 0.5), cornerRadius: 0.1)
         let baseMaterial = SimpleMaterial(color: .systemRed.withAlphaComponent(0.5), isMetallic: false)
         let baseEntity = ModelEntity(mesh: baseMesh, materials: [baseMaterial])
         baseEntity.position = position + simd_float3(0, 0.01, 0)
 
-        // Create pole
-        let poleMesh = MeshResource.generateCylinder(height: 1.0, radius: 0.02)
+        // Create pole using thin box
+        let poleMesh = MeshResource.generateBox(size: simd_float3(0.04, 1.0, 0.04), cornerRadius: 0.01)
         let poleMaterial = SimpleMaterial(color: .white, isMetallic: false)
         let poleEntity = ModelEntity(mesh: poleMesh, materials: [poleMaterial])
         poleEntity.position = simd_float3(0, 0.5, 0)

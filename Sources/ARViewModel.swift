@@ -55,6 +55,11 @@ class ARViewModel: NSObject, ObservableObject {
     private let pathPlanningEngine = PathPlanningEngine()
     private let pathVisualization = PathVisualization()
 
+    // Improved Feedback Systems
+    private let musicalFeedback = MusicalDistanceFeedback()
+    private let simplifiedHaptics = SimplifiedHaptics()
+    private let voiceGuidance = VoiceGuidance()
+
     // User position tracking
     private var userPosition = simd_float3(0, 0, 0)
     private var userHeading = simd_float3(0, 0, -1)
@@ -166,8 +171,9 @@ class ARViewModel: NSObject, ObservableObject {
             }
 
             // Sample points for distance calculation
+            // Focus on upper 2/3 of frame to avoid ground detection
             let centerX = width / 2
-            let centerY = height / 2
+            let centerY = height / 2 - height / 6  // Shift up to avoid ground
             let leftX = width / 4
             let rightX = (width * 3) / 4
 
@@ -204,20 +210,25 @@ class ARViewModel: NSObject, ObservableObject {
                 }
             }
 
-            // Find closest obstacle in forward path
+            // Find closest obstacle in forward path (exclude ground level)
             var minDistance: Float = Float.greatestFiniteMagnitude
             let scanWidth = width / 3
             let scanStartX = centerX - scanWidth / 2
             let scanEndX = centerX + scanWidth / 2
 
-            for y in (height/3)...(2*height/3) {
+            // Scan only the middle portion of screen (chest to head level)
+            let scanStartY = height / 4  // Start from upper portion
+            let scanEndY = (height * 2) / 3  // End before ground level
+
+            for y in scanStartY...scanEndY {
                 for x in scanStartX...scanEndX {
                     let index = y * width + x
                     let confidence = ARConfidenceLevel(rawValue: Int(confidenceAddress[index])) ?? .low
 
                     if confidence != .low {
                         let distance = depthAddress[index]
-                        if distance > 0 && distance < minDistance {
+                        // Ignore very close ground readings (< 0.3m) and far readings (> 5m)
+                        if distance > 0.3 && distance < 5.0 && distance < minDistance {
                             minDistance = distance
                         }
                     }
@@ -346,10 +357,10 @@ class ARViewModel: NSObject, ObservableObject {
         guard let classificationData = classification else { return }
 
         // Sample vertices to create obstacle entries
-        let vertexCount = vertices.count
-        let stride = max(1, vertexCount / 100) // Sample every N vertices for performance
+        let vertexCount = vertices.count / vertices.stride  // Number of actual vertices
+        let sampleStride = max(1, vertexCount / 100) // Sample every N vertices for performance
 
-        for i in stride(from: 0, to: vertexCount, by: stride) {
+        for i in Swift.stride(from: 0, to: vertexCount, by: sampleStride) {
             // Get vertex position
             let vertexPointer = vertices.buffer.contents().advanced(by: vertices.offset + (i * vertices.stride))
             let vertex = vertexPointer.assumingMemoryBound(to: simd_float3.self).pointee
@@ -362,9 +373,16 @@ class ARViewModel: NSObject, ObservableObject {
             let classValue = classPointer.assumingMemoryBound(to: UInt8.self).pointee
             let meshClass = ARMeshClassification(rawValue: Int(classValue)) ?? .none
 
-            // Add to obstacle memory
+            // Add to obstacle memory with height filtering
             let obstacleType = obstacleMemoryMap.classifyFromARMesh(meshClass)
-            if obstacleType != .floor && obstacleType != .ceiling {
+
+            // Filter out floor, ceiling, and low obstacles (below knee level ~0.4m from user position)
+            let relativeHeight = worldPos.y - userPosition.y
+            let isGroundLevel = relativeHeight < -0.8  // Below 0.8m from camera is likely ground
+
+            if obstacleType != ObstacleMemoryMap.ObstacleType.floor &&
+               obstacleType != ObstacleMemoryMap.ObstacleType.ceiling &&
+               !isGroundLevel {
                 obstacleMemoryMap.addOrUpdateObstacle(
                     position: worldPos,
                     size: simd_float3(0.3, 0.3, 0.3), // Default size
@@ -380,34 +398,78 @@ class ARViewModel: NSObject, ObservableObject {
     /// Update navigation guidance based on obstacles
     private func updateNavigationGuidance() {
         // Determine navigation direction based on obstacles
-        let leftClear = leftDistance > warningThreshold
-        let rightClear = rightDistance > warningThreshold
-        let frontClear = centerDistance > warningThreshold
+        let leftClear = leftDistance > warningThreshold || leftDistance < 0
+        let rightClear = rightDistance > warningThreshold || rightDistance < 0
+        let frontClear = centerDistance > warningThreshold || centerDistance < 0
 
-        var direction: HapticFeedbackManager.NavigationDirection = .straight
+        // Find closest obstacle and its direction
+        let distances = [
+            (centerDistance, MusicalDistanceFeedback.Direction.center),
+            (leftDistance, MusicalDistanceFeedback.Direction.left),
+            (rightDistance, MusicalDistanceFeedback.Direction.right)
+        ].filter { $0.0 > 0 }  // Filter out invalid readings
 
-        if !frontClear {
-            if leftClear && !rightClear {
-                direction = .left
-            } else if rightClear && !leftClear {
-                direction = .right
-            } else if leftClear && rightClear {
-                // Choose direction with more clearance
-                direction = leftDistance > rightDistance ? .left : .right
-            } else {
-                direction = .blocked
+        if let closest = distances.min(by: { $0.0 < $1.0 }) {
+            let (distance, obstacleDirection) = closest
+
+            // Musical feedback for distance
+            musicalFeedback.updateFeedback(distance: distance, direction: obstacleDirection)
+
+            // Simplified haptic feedback based on distance
+            simplifiedHaptics.distanceBasedFeedback(distance: distance)
+
+            // Voice guidance for critical situations
+            if distance < criticalThreshold {
+                // Very close - announce stop
+                voiceGuidance.announceStop()
+                simplifiedHaptics.continuousWarning()
+            } else if distance < warningThreshold {
+                // Warning zone - suggest direction
+                var voiceDirection: VoiceGuidance.Direction = .center
+
+                if !frontClear {
+                    if leftClear && !rightClear {
+                        voiceDirection = .right  // Object on right, turn left
+                        navigationDirection = .left
+                    } else if rightClear && !leftClear {
+                        voiceDirection = .left  // Object on left, turn right
+                        navigationDirection = .right
+                    } else if leftClear && rightClear {
+                        // Choose direction with more clearance
+                        if leftDistance > rightDistance {
+                            voiceDirection = .right
+                            navigationDirection = .left
+                        } else {
+                            voiceDirection = .left
+                            navigationDirection = .right
+                        }
+                    } else {
+                        voiceDirection = .center
+                        navigationDirection = .blocked
+                    }
+                } else {
+                    // Path ahead is clear but obstacles on sides
+                    if obstacleDirection == .left {
+                        voiceDirection = .left
+                    } else if obstacleDirection == .right {
+                        voiceDirection = .right
+                    }
+                    navigationDirection = .straight
+                }
+
+                voiceGuidance.announceObstacle(direction: voiceDirection, distance: distance)
             }
-        }
+        } else {
+            // No obstacles detected - clear path
+            musicalFeedback.stopFeedback()
+            navigationDirection = .straight
 
-        navigationDirection = direction
-
-        // Play haptic and audio feedback
-        if direction != .straight {
-            let distance = min(centerDistance, min(leftDistance, rightDistance))
-            hapticFeedbackManager.playNavigationFeedback(direction: direction, distance: distance)
-
-            let audioDirection = mapToAudioDirection(direction)
-            audioDirectionManager.playDirectionalCue(direction: audioDirection, distance: distance)
+            // Occasionally announce clear path
+            if Date().timeIntervalSince(lastWarningTime) > 5.0 {
+                voiceGuidance.announceClear()
+                simplifiedHaptics.successFeedback()
+                lastWarningTime = Date()
+            }
         }
 
         // Update path if needed
