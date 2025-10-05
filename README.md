@@ -167,6 +167,7 @@ Built with ❤️ at hackathon by Team I.R.I.S
 Members:
 -Pratham Patel
 -Kunga Lama Tamang
+-Riwaz Shrestha
 
 ## 📄 License
 
