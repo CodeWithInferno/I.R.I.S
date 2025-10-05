@@ -39,22 +39,22 @@ class SpatialMemoryDB {
         }
     }
 
-    struct CachedObstacle {
-        let x: Float
-        let y: Float
-        let z: Float
-        let width: Float
-        let height: Float
-        let depth: Float
-        let type: String
-        let permanence: Float // 0.0 = always moves, 1.0 = never moves
-        let lastSeen: Date
+    public struct CachedObstacle {
+        public let x: Float
+        public let y: Float
+        public let z: Float
+        public let width: Float
+        public let height: Float
+        public let depth: Float
+        public let type: String
+        public let permanence: Float // 0.0 = always moves, 1.0 = never moves
+        public let lastSeen: Date
 
-        var position: simd_float3 {
+        public var position: simd_float3 {
             simd_float3(x, y, z)
         }
 
-        var size: simd_float3 {
+        public var size: simd_float3 {
             simd_float3(width, height, depth)
         }
     }

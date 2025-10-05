@@ -101,7 +101,6 @@ class VoiceGuidance: ObservableObject {
     func announceDistance(_ distance: Float) {
         guard isEnabled, shouldSpeak() else { return }
 
-        let roundedDistance = Int(distance * 10) / 10  // Round to 0.1m
         let message: String
 
         if distance < 1.0 {
