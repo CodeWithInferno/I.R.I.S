@@ -164,6 +164,9 @@ open LiDARObstacleDetection.xcodeproj
 ## 🤝 Team
 
 Built with ❤️ at hackathon by Team I.R.I.S
+Members:
+-Pratham Patel
+-Kunga Lama Tamang
 
 ## 📄 License
 
