@@ -59,6 +59,7 @@ class ARViewModel: NSObject, ObservableObject {
     private let musicalFeedback = MusicalDistanceFeedback()
     private let simplifiedHaptics = SimplifiedHaptics()
     private let voiceGuidance = VoiceGuidance()
+    private let accessibilityManager = AccessibilityManager.shared
 
     // User position tracking
     private var userPosition = simd_float3(0, 0, 0)
@@ -426,7 +427,16 @@ class ARViewModel: NSObject, ObservableObject {
             // Simplified haptic feedback based on distance
             simplifiedHaptics.distanceBasedFeedback(distance: distance)
 
-            // No voice guidance - disabled
+            // VoiceOver announcements for accessibility
+            if obstacleDirection == .center {
+                accessibilityManager.announceObstacle(distance: distance, direction: "ahead")
+            } else if obstacleDirection == .left {
+                accessibilityManager.announceObstacle(distance: distance, direction: "on your left")
+            } else if obstacleDirection == .right {
+                accessibilityManager.announceObstacle(distance: distance, direction: "on your right")
+            }
+
+            // No voice guidance - disabled (but VoiceOver still works)
             if distance < criticalThreshold {
                 // Very close - only haptic warning
                 simplifiedHaptics.continuousWarning()
@@ -472,9 +482,9 @@ class ARViewModel: NSObject, ObservableObject {
             // musicalFeedback.stopFeedback()  // Disabled
             navigationDirection = .straight
 
-            // No announcements - just occasional haptic
+            // Announce clear path for VoiceOver users
             if Date().timeIntervalSince(lastWarningTime) > 5.0 {
-                // voiceGuidance.announceClear()  // Disabled
+                accessibilityManager.announceClearPath()  // VoiceOver announcement
                 simplifiedHaptics.successFeedback()
                 lastWarningTime = Date()
             }

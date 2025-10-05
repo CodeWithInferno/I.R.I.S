@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		084CCC7D0AADA80B83FDDB2D /* AccessibilityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 848A76578AAE4D1DE9B8DD90 /* AccessibilityManager.swift */; };
 		11A63417B7686CFDB7A5410C /* AudioDirectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30389EEE5BEA2DB467961CB7 /* AudioDirectionManager.swift */; };
 		22C1D5BA1CFD49A6F25251D8 /* MusicalDistanceFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADFCEAAB0D3E72BE6ACC86E4 /* MusicalDistanceFeedback.swift */; };
 		31D44AB4DDDA997832503CE9 /* PathVisualization.swift in Sources */ = {isa = PBXBuildFile; fileRef = C965D37301124079CE8D9E03 /* PathVisualization.swift */; };
@@ -25,6 +26,7 @@
 		20E6D763AB1B3CD3A62BDBBD /* HapticFeedbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticFeedbackManager.swift; sourceTree = "<group>"; };
 		30389EEE5BEA2DB467961CB7 /* AudioDirectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDirectionManager.swift; sourceTree = "<group>"; };
 		7A807CC578CC90CDC8E3203D /* VoiceGuidance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceGuidance.swift; sourceTree = "<group>"; };
+		848A76578AAE4D1DE9B8DD90 /* AccessibilityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityManager.swift; sourceTree = "<group>"; };
 		A4B67F7DF0957944FFDB9631 /* LiDARObstacleDetection.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LiDARObstacleDetection.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		ADFCEAAB0D3E72BE6ACC86E4 /* MusicalDistanceFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicalDistanceFeedback.swift; sourceTree = "<group>"; };
 		C51355205D9322EB21F6AF8C /* PathPlanningEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathPlanningEngine.swift; sourceTree = "<group>"; };
@@ -47,6 +49,7 @@
 		4E42EF19A65986CC391769EB /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				848A76578AAE4D1DE9B8DD90 /* AccessibilityManager.swift */,
 				F9692B46B477CA7D7BDF3BDE /* ARViewModel.swift */,
 				30389EEE5BEA2DB467961CB7 /* AudioDirectionManager.swift */,
 				F71F7D6E3D02B305EF6AA14F /* ContentView.swift */,
@@ -146,6 +149,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA4565FFEC44DAF8E921F42F /* ARViewModel.swift in Sources */,
+				084CCC7D0AADA80B83FDDB2D /* AccessibilityManager.swift in Sources */,
 				11A63417B7686CFDB7A5410C /* AudioDirectionManager.swift in Sources */,
 				B53DB142A6D98F40D335FEAE /* ContentView.swift in Sources */,
 				A11204D4F5B99D544F23A9BE /* HapticFeedbackManager.swift in Sources */,

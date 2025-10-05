@@ -11,6 +11,8 @@ struct ContentView: View {
             // AR View
             ARViewContainer(arViewModel: arViewModel)
                 .edgesIgnoringSafeArea(.all)
+                .accessibilityLabel("Camera view for obstacle detection")
+                .accessibilityHint("Hold phone upright and point forward to detect obstacles")
 
             // Overlay UI
             VStack {
@@ -54,6 +56,9 @@ struct ContentView: View {
                         label: "Front",
                         isWarning: arViewModel.centerDistance < arViewModel.warningThreshold
                     )
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(getAccessibilityLabel(for: arViewModel.centerDistance, direction: "front"))
+                    .accessibilityHint("Distance to obstacle directly ahead")
 
                     // Side distances
                     HStack(spacing: 40) {
@@ -63,6 +68,8 @@ struct ContentView: View {
                             isWarning: arViewModel.leftDistance < arViewModel.warningThreshold,
                             isCompact: true
                         )
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(getAccessibilityLabel(for: arViewModel.leftDistance, direction: "left"))
 
                         DistanceIndicator(
                             distance: arViewModel.rightDistance,
@@ -70,6 +77,8 @@ struct ContentView: View {
                             isWarning: arViewModel.rightDistance < arViewModel.warningThreshold,
                             isCompact: true
                         )
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(getAccessibilityLabel(for: arViewModel.rightDistance, direction: "right"))
                     }
                 }
                 .padding()
@@ -93,6 +102,22 @@ struct ContentView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text("This app requires a device with LiDAR Scanner (iPhone 12 Pro or later).")
+        }
+    }
+
+    // MARK: - Accessibility Helpers
+
+    private func getAccessibilityLabel(for distance: Float, direction: String) -> String {
+        if distance < 0 {
+            return "No obstacle detected on \(direction)"
+        } else if distance > 5.0 {
+            return "Clear path on \(direction), no obstacles nearby"
+        } else if distance < 0.5 {
+            return "Warning! Obstacle very close on \(direction), \(String(format: "%.1f", distance)) meters"
+        } else if distance < 1.0 {
+            return "Caution, obstacle on \(direction) at \(String(format: "%.1f", distance)) meters"
+        } else {
+            return "Obstacle on \(direction) at \(String(format: "%.1f", distance)) meters"
         }
     }
 }
@@ -128,42 +153,44 @@ struct DistanceIndicator: View {
     }
 
     private var indicatorColor: Color {
+        // High contrast colors for accessibility
         if distance < 0 {
-            return Color.gray
+            return Color.white
         } else if distance < 0.5 {
-            return Color.red
+            return Color.red  // Danger
         } else if distance < 1.0 {
-            return Color.orange
+            return Color.orange  // Warning
         } else if distance < 2.0 {
-            return Color.yellow
+            return Color.yellow  // Caution
         } else {
-            return Color.green
+            return Color.green  // Safe
         }
     }
 
     var body: some View {
         VStack(spacing: 4) {
             Text(label)
-                .font(isCompact ? .caption : .subheadline)
-                .foregroundColor(.white.opacity(0.7))
+                .font(isCompact ? .headline : .title3)  // Larger text
+                .fontWeight(.semibold)
+                .foregroundColor(.white)  // Full white for contrast
 
             Text(distanceText)
-                .font(isCompact ? .title3 : .title)
-                .fontWeight(.bold)
+                .font(isCompact ? .title2 : .largeTitle)  // Much larger
+                .fontWeight(.heavy)  // Bolder for visibility
                 .foregroundColor(indicatorColor)
-                .shadow(color: indicatorColor.opacity(0.5), radius: isWarning ? 10 : 5)
+                .shadow(color: .black, radius: 2)  // Black shadow for contrast
         }
-        .padding(isCompact ? 12 : 16)
+        .padding(isCompact ? 16 : 20)  // More padding
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.black.opacity(0.3))
+                .fill(Color.black.opacity(0.9))  // Darker background
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(indicatorColor.opacity(0.5), lineWidth: isWarning ? 3 : 1)
+                        .stroke(indicatorColor, lineWidth: isWarning ? 4 : 2)  // Thicker border
                 )
         )
-        .scaleEffect(isWarning && !isCompact ? 1.05 : 1.0)
-        .animation(.easeInOut(duration: 0.3).repeatForever(autoreverses: true), value: isWarning)
+        .scaleEffect(isWarning && !isCompact ? 1.1 : 1.0)
+        .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: isWarning)
     }
 }
 
