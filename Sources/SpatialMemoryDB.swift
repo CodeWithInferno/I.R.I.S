@@ -5,10 +5,10 @@ import simd
 import CryptoKit
 
 /// Intelligent spatial memory database for location learning and pattern recognition
-class SpatialMemoryDB {
+public class SpatialMemoryDB {
 
     // MARK: - Singleton
-    static let shared = SpatialMemoryDB()
+    public static let shared = SpatialMemoryDB()
 
     // MARK: - Properties
     private var db: OpaquePointer?
@@ -87,13 +87,29 @@ class SpatialMemoryDB {
         let successRate: Float
     }
 
-    struct LocationFingerprint {
-        let dominantObstacles: [simd_float3] // Top 10 largest obstacles
-        let roomDimensions: simd_float3 // Approximate width, height, depth
-        let cornerCount: Int
-        let obstacleCount: Int
-        let wifiSignatures: Set<String> // BSSIDs if available
-        let magneticSignature: Float? // Magnetic field strength
+    public struct LocationFingerprint {
+        public let dominantObstacles: [simd_float3] // Top 10 largest obstacles
+        public let roomDimensions: simd_float3 // Approximate width, height, depth
+        public let cornerCount: Int
+        public let obstacleCount: Int
+        public let wifiSignatures: Set<String> // BSSIDs if available
+        public let magneticSignature: Float? // Magnetic field strength
+
+        public init(
+            dominantObstacles: [simd_float3],
+            roomDimensions: simd_float3,
+            cornerCount: Int,
+            obstacleCount: Int,
+            wifiSignatures: Set<String>,
+            magneticSignature: Float?
+        ) {
+            self.dominantObstacles = dominantObstacles
+            self.roomDimensions = roomDimensions
+            self.cornerCount = cornerCount
+            self.obstacleCount = obstacleCount
+            self.wifiSignatures = wifiSignatures
+            self.magneticSignature = magneticSignature
+        }
 
         func hash() -> String {
             var hasher = SHA256()
