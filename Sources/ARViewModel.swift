@@ -55,6 +55,11 @@ class ARViewModel: NSObject, ObservableObject {
     private let pathPlanningEngine = PathPlanningEngine()
     private let pathVisualization = PathVisualization()
 
+    // Intelligent Memory System
+    private let memoryOptimizer = MemoryOptimizer.shared
+    private var lastLocationCheck = Date()
+    private var scanFrameCounter = 0
+
     // Improved Feedback Systems
     private let musicalFeedback = MusicalDistanceFeedback()
     private let simplifiedHaptics = SimplifiedHaptics()
@@ -342,6 +347,95 @@ class ARViewModel: NSObject, ObservableObject {
         AudioServicesPlaySystemSound(soundID)
     }
 
+    // MARK: - Intelligent Memory Methods
+
+    /// Check current location and optimize scanning strategy
+    private func checkAndOptimizeLocation() {
+        // Collect current obstacles
+        let obstacles = obstacleMemoryMap.getReliableObstacles().map { obs in
+            (position: obs.position, size: obs.size, type: obs.classification.rawValue)
+        }
+
+        // Generate fingerprint and check location
+        let bounds = calculateRoomBounds()
+        memoryOptimizer.checkLocation(obstacles: obstacles, roomBounds: bounds)
+
+        // If in known location, show stats
+        if memoryOptimizer.isInKnownLocation {
+            print(memoryOptimizer.getMemoryStats())
+        }
+
+        // Save location periodically
+        if obstacles.count > 5 {
+            memoryOptimizer.saveCurrentLocation(obstacles: obstacles)
+        }
+    }
+
+    /// Use cached obstacles instead of scanning
+    private func useCachedObstacles() {
+        let cachedObstacles = memoryOptimizer.predictedObstacles
+
+        // Convert to format for distance calculation
+        for cached in cachedObstacles {
+            obstacleMemoryMap.addOrUpdateObstacle(
+                position: cached.position,
+                size: cached.size,
+                confidence: cached.permanence,
+                classification: .unknown
+            )
+        }
+
+        // Update distances using cached data
+        updateDistancesFromCache(cachedObstacles)
+    }
+
+    /// Update distances using cached obstacles
+    private func updateDistancesFromCache(_ obstacles: [SpatialMemoryDB.CachedObstacle]) {
+        var minCenter = Float.infinity
+        var minLeft = Float.infinity
+        var minRight = Float.infinity
+
+        for obstacle in obstacles {
+            let distance = simd_distance(userPosition, obstacle.position)
+
+            // Determine direction relative to user
+            let toObstacle = obstacle.position - userPosition
+            let forward = userHeading
+            let right = simd_cross(simd_float3(0, 1, 0), forward)
+
+            let forwardDot = simd_dot(simd_normalize(toObstacle), forward)
+            let rightDot = simd_dot(simd_normalize(toObstacle), right)
+
+            // Categorize by direction
+            if abs(rightDot) < 0.5 && forwardDot > 0 {
+                minCenter = min(minCenter, distance)
+            } else if rightDot < -0.5 {
+                minLeft = min(minLeft, distance)
+            } else if rightDot > 0.5 {
+                minRight = min(minRight, distance)
+            }
+        }
+
+        // Update published distances
+        DispatchQueue.main.async { [weak self] in
+            self?.centerDistance = minCenter.isFinite ? minCenter : -1
+            self?.leftDistance = minLeft.isFinite ? minLeft : -1
+            self?.rightDistance = minRight.isFinite ? minRight : -1
+        }
+    }
+
+    /// Calculate room bounds from obstacles
+    private func calculateRoomBounds() -> (min: simd_float3, max: simd_float3)? {
+        let obstacles = obstacleMemoryMap.getReliableObstacles()
+        guard !obstacles.isEmpty else { return nil }
+
+        let positions = obstacles.map { $0.position }
+        let minPos = positions.reduce(simd_float3(Float.infinity, Float.infinity, Float.infinity)) { simd_min($0, $1) }
+        let maxPos = positions.reduce(simd_float3(-Float.infinity, -Float.infinity, -Float.infinity)) { simd_max($0, $1) }
+
+        return (min: minPos, max: maxPos)
+    }
+
     // MARK: - Mesh Processing
     private func processMeshAnchor(_ anchor: ARMeshAnchor) {
         meshAnchors[anchor.identifier] = anchor
@@ -555,6 +649,19 @@ extension ARViewModel: ARSessionDelegate {
         userPosition = simd_make_float3(transform.columns.3)
         userHeading = -simd_make_float3(transform.columns.2) // Forward direction
 
+        // Intelligent Memory: Check location every 5 seconds
+        if Date().timeIntervalSince(lastLocationCheck) > 5.0 {
+            checkAndOptimizeLocation()
+            lastLocationCheck = Date()
+        }
+
+        // Intelligent Memory: Adjust scan frequency based on mode
+        let scanParams = memoryOptimizer.getOptimizedScanParameters()
+        scanFrameCounter += 1
+
+        // Skip frames based on optimization mode
+        let shouldSkipFrame = scanFrameCounter % (60 / scanParams.frequency) != 0
+
         // Update path planning with user position
         pathPlanningEngine.updateUserPosition(
             userPosition,
@@ -583,9 +690,15 @@ extension ARViewModel: ARSessionDelegate {
             trackingQuality = "Not Available"
         }
 
-        // Process depth data if available
+        // Process depth data if available (with intelligent optimization)
         if let depthData = frame.sceneDepth ?? frame.smoothedSceneDepth {
-            processDepthData(depthData)
+            // Check if we should use cache instead of processing
+            if !shouldSkipFrame && !memoryOptimizer.shouldUseCache(for: userPosition) {
+                processDepthData(depthData)
+            } else if memoryOptimizer.isInKnownLocation {
+                // Use cached/predicted obstacles
+                useCachedObstacles()
+            }
             // confidenceLevel is not a direct property, confidence is determined per pixel
             depthConfidence = .medium
         }
