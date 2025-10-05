@@ -241,7 +241,7 @@ class AudioDirectionManager: ObservableObject {
         playerNode.stop()
         playerNode.volume = volume
 
-        playerNode.scheduleBuffer(buffer, at: nil, options: .interrupts) { [weak self] in
+        playerNode.scheduleBuffer(buffer, at: nil, options: .interrupts) {
             // Buffer completed playing
         }
 

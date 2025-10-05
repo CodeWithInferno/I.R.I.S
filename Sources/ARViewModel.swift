@@ -60,6 +60,7 @@ class ARViewModel: NSObject, ObservableObject {
     private let simplifiedHaptics = SimplifiedHaptics()
     private let voiceGuidance = VoiceGuidance()
     private let accessibilityManager = AccessibilityManager.shared
+    private var lastFeedbackTime = Date()
 
     // User position tracking
     private var userPosition = simd_float3(0, 0, 0)
@@ -424,8 +425,7 @@ class ARViewModel: NSObject, ObservableObject {
             // Musical feedback disabled - too annoying
             // musicalFeedback.updateFeedback(distance: distance, direction: obstacleDirection)
 
-            // Simplified haptic feedback based on distance
-            simplifiedHaptics.distanceBasedFeedback(distance: distance)
+            // Morse code haptic feedback will be provided based on navigation direction
 
             // VoiceOver announcements for accessibility
             if obstacleDirection == .center {
@@ -436,46 +436,52 @@ class ARViewModel: NSObject, ObservableObject {
                 accessibilityManager.announceObstacle(distance: distance, direction: "on your right")
             }
 
-            // No voice guidance - disabled (but VoiceOver still works)
+            // Simplified navigation - focus on clear walking path
             if distance < criticalThreshold {
-                // Very close - only haptic warning
-                simplifiedHaptics.continuousWarning()
-            } else if distance < warningThreshold {
-                // Warning zone - suggest direction
-                var voiceDirection: VoiceGuidance.Direction = .center
+                // Very close - STOP
+                simplifiedHaptics.navigationFeedback(direction: .stop, distance: distance)
+                navigationDirection = .blocked
+            } else if !frontClear && distance < warningThreshold {
+                // Obstacle ahead - need to turn
 
-                if !frontClear {
-                    if leftClear && !rightClear {
-                        voiceDirection = .right  // Object on right, turn left
-                        navigationDirection = .left
-                    } else if rightClear && !leftClear {
-                        voiceDirection = .left  // Object on left, turn right
-                        navigationDirection = .right
-                    } else if leftClear && rightClear {
-                        // Choose direction with more clearance
-                        if leftDistance > rightDistance {
-                            voiceDirection = .right
-                            navigationDirection = .left
-                        } else {
-                            voiceDirection = .left
-                            navigationDirection = .right
-                        }
-                    } else {
-                        voiceDirection = .center
-                        navigationDirection = .blocked
-                    }
-                } else {
-                    // Path ahead is clear but obstacles on sides
-                    if obstacleDirection == .left {
-                        voiceDirection = .left
-                    } else if obstacleDirection == .right {
-                        voiceDirection = .right
-                    }
+                // Check if there's enough space to walk through
+                let canWalkStraight = (leftDistance > 0.8 || rightDistance > 0.8) &&
+                                     frontClear
+
+                if canWalkStraight {
+                    // Can squeeze through - go straight
+                    simplifiedHaptics.navigationFeedback(direction: .straight, distance: 999)
                     navigationDirection = .straight
+                } else if leftClear && rightClear {
+                    // Both sides available - pick side with more room
+                    if leftDistance > rightDistance + 0.3 {  // Prefer left if significantly more space
+                        simplifiedHaptics.navigationFeedback(direction: .left, distance: distance)
+                        navigationDirection = .left
+                    } else if rightDistance > leftDistance + 0.3 {
+                        simplifiedHaptics.navigationFeedback(direction: .right, distance: distance)
+                        navigationDirection = .right
+                    } else {
+                        // Similar space - default to right
+                        simplifiedHaptics.navigationFeedback(direction: .right, distance: distance)
+                        navigationDirection = .right
+                    }
+                } else if leftClear {
+                    // Only left available
+                    simplifiedHaptics.navigationFeedback(direction: .left, distance: distance)
+                    navigationDirection = .left
+                } else if rightClear {
+                    // Only right available
+                    simplifiedHaptics.navigationFeedback(direction: .right, distance: distance)
+                    navigationDirection = .right
+                } else {
+                    // No path - STOP
+                    simplifiedHaptics.navigationFeedback(direction: .stop, distance: distance)
+                    navigationDirection = .blocked
                 }
-
-                // Voice disabled
-                // voiceGuidance.announceObstacle(direction: voiceDirection, distance: distance)
+            } else if frontClear {
+                // Path is clear - tell them to go straight
+                simplifiedHaptics.navigationFeedback(direction: .straight, distance: 999)
+                navigationDirection = .straight
             }
         } else {
             // No obstacles detected - clear path

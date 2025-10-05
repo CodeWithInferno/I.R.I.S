@@ -11,7 +11,8 @@ class SimplifiedHaptics: ObservableObject {
 
     // Feedback timing control
     private var lastFeedbackTime = Date()
-    private let minimumInterval: TimeInterval = 1.0  // Increased to reduce frequency
+    private let minimumInterval: TimeInterval = 2.5  // Much longer gap between feedbacks
+    private var lastDirection: Direction? = nil
 
     // MARK: - Initialization
     init() {
@@ -51,50 +52,81 @@ class SimplifiedHaptics: ObservableObject {
         }
     }
 
-    // MARK: - Simplified Feedback Patterns
+    // MARK: - Morse Code Patterns
 
-    /// Single gentle tap - minor obstacle detected
-    func singleTap(intensity: Float = 0.5) {
-        guard isEnabled, canProvideFeedback() else { return }
-
-        let hapticIntensity = CHHapticEventParameter(
-            parameterID: .hapticIntensity,
-            value: min(1.0, intensity)
-        )
-        let hapticSharpness = CHHapticEventParameter(
-            parameterID: .hapticSharpness,
-            value: 0.5
-        )
-
-        let event = CHHapticEvent(
-            eventType: .hapticTransient,
-            parameters: [hapticIntensity, hapticSharpness],
-            relativeTime: 0
-        )
-
-        playPattern(events: [event])
-    }
-
-    /// Double tap - turn recommended
-    func doubleTap(intensity: Float = 0.7) {
+    /// Dots pattern (. . . .) - Turn LEFT
+    func dotsForLeft() {
         guard isEnabled, canProvideFeedback() else { return }
 
         var events: [CHHapticEvent] = []
 
-        for i in 0..<2 {
+        // 4 short taps for LEFT
+        for i in 0..<4 {
             let hapticIntensity = CHHapticEventParameter(
                 parameterID: .hapticIntensity,
-                value: min(1.0, intensity)
+                value: 0.8  // Strong enough to feel
             )
             let hapticSharpness = CHHapticEventParameter(
                 parameterID: .hapticSharpness,
-                value: 0.7
+                value: 1.0  // Sharp, distinct taps
             )
 
             let event = CHHapticEvent(
                 eventType: .hapticTransient,
                 parameters: [hapticIntensity, hapticSharpness],
-                relativeTime: TimeInterval(i) * 0.15
+                relativeTime: TimeInterval(i) * 0.2  // Quick dots
+            )
+            events.append(event)
+        }
+
+        playPattern(events: events)
+    }
+
+    /// Dash pattern (---) - Turn RIGHT
+    func dashForRight() {
+        guard isEnabled, canProvideFeedback() else { return }
+
+        let hapticIntensity = CHHapticEventParameter(
+            parameterID: .hapticIntensity,
+            value: 0.8  // Strong vibration
+        )
+        let hapticSharpness = CHHapticEventParameter(
+            parameterID: .hapticSharpness,
+            value: 0.3  // Smooth, continuous
+        )
+
+        // One long continuous vibration for RIGHT
+        let event = CHHapticEvent(
+            eventType: .hapticContinuous,
+            parameters: [hapticIntensity, hapticSharpness],
+            relativeTime: 0,
+            duration: 0.8  // Long dash
+        )
+
+        playPattern(events: [event])
+    }
+
+    /// Two short taps - Go STRAIGHT
+    func goStraight() {
+        guard isEnabled, canProvideFeedback() else { return }
+
+        var events: [CHHapticEvent] = []
+
+        // 2 gentle taps for STRAIGHT
+        for i in 0..<2 {
+            let hapticIntensity = CHHapticEventParameter(
+                parameterID: .hapticIntensity,
+                value: 0.6  // Gentler
+            )
+            let hapticSharpness = CHHapticEventParameter(
+                parameterID: .hapticSharpness,
+                value: 0.8
+            )
+
+            let event = CHHapticEvent(
+                eventType: .hapticTransient,
+                parameters: [hapticIntensity, hapticSharpness],
+                relativeTime: TimeInterval(i) * 0.3
             )
             events.append(event)
         }
@@ -125,41 +157,40 @@ class SimplifiedHaptics: ObservableObject {
         playPattern(events: [event])
     }
 
-    /// Distance-based feedback - more subtle
-    func distanceBasedFeedback(distance: Float) {
+    /// Simple navigation feedback - only one at a time
+    func navigationFeedback(direction: Direction, distance: Float) {
         guard isEnabled else { return }
 
-        // Much gentler intensity curve
-        // 0.4m = max intensity (0.7), 1.2m = min intensity (0.2)
-        let intensity = max(0.2, min(0.7, (1.2 - distance) / 0.8))
-
-        if distance < 0.4 {
-            // Very close - short vibration (not continuous)
-            continuousWarning(duration: 0.15, intensity: intensity)  // Shorter
-        } else if distance < 0.8 {
-            // Close - single gentle tap (not double)
-            singleTap(intensity: intensity * 0.8)  // Gentler
-        } else if distance < 1.2 {
-            // Moderate distance - very light tap
-            singleTap(intensity: intensity * 0.5)  // Very gentle
+        // Don't repeat same direction too quickly
+        if direction == lastDirection &&
+           Date().timeIntervalSince(lastFeedbackTime) < minimumInterval {
+            return
         }
-        // No haptic beyond 1.2m - much shorter range
-    }
 
-    /// Direction indicator - left or right
-    func directionIndicator(direction: Direction) {
-        guard isEnabled, canProvideFeedback() else { return }
-
+        // Only give feedback for important navigation
         switch direction {
         case .left:
-            // Single tap for left
-            singleTap(intensity: 0.6)
+            // Dots for left (. . . .)
+            dotsForLeft()
+            lastDirection = .left
+            lastFeedbackTime = Date()
         case .right:
-            // Double tap for right
-            doubleTap(intensity: 0.6)
+            // Dash for right (---)
+            dashForRight()
+            lastDirection = .right
+            lastFeedbackTime = Date()
         case .straight:
-            // No haptic for straight
-            break
+            // Two taps for go straight
+            goStraight()
+            lastDirection = .straight
+            lastFeedbackTime = Date()
+        case .stop:
+            // Only warn if very close
+            if distance < 0.5 {
+                continuousWarning(duration: 0.5, intensity: 1.0)
+                lastDirection = .stop
+                lastFeedbackTime = Date()
+            }
         }
     }
 
@@ -167,6 +198,7 @@ class SimplifiedHaptics: ObservableObject {
         case left
         case right
         case straight
+        case stop
     }
 
     /// Success feedback - path is clear
